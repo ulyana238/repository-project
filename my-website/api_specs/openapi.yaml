@@ -1,0 +1,451 @@
+openapi: 3.0.3
+info:
+  title: API для подбора и формирования команды
+  description: API для управления командами
+  version: "1.0.0"
+servers:
+  - url: https://team-selection.com  
+security:
+  - BearerAuth: []
+paths:
+  /api/v1/application:
+    post:
+      summary: Получить список заявок для формирования команд
+      tags:
+        - application
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - pageNumber
+                - pageSize
+              properties:
+                date:
+                  type: string
+                  format: date-time
+                businessRequirement:
+                  type: string
+                candidates:
+                  type: object
+                  properties:
+                    roles:
+                      type: string
+                    amount:
+                      type: integer
+                sortField:
+                  type: string
+                sortDirection:
+                  type: string
+                  enum:
+                    - ASC
+                    - DESC
+                pageNumber:
+                  type: integer
+                pageSize:
+                  type: integer
+              example:
+                id: 123
+                date: '2024-11-14T19:17:00Z'
+                businessRequirement: Goal
+                candidates:
+                  roles: System Analyst
+                  amount: 2
+                sortField: id
+                sortDirection: ASC
+                pageNumber: 1
+                pageSize: 10
+      responses:
+        200:
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApplicationResponse'
+        400:
+          description: Некорректный запрос. Например, не переданы обязательные параметры.
+        401:
+          description: Пользователь не авторизован.
+        403:
+          description: Пользователь не имеет прав для выполнения запроса.
+        404:
+          description: Заявки не найдены.
+        500:
+          description: Внутренняя ошибка сервера.
+
+  /api/v1/application/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Получить информацию по заявке
+      tags:
+        - application
+      responses:
+        200:
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                  date:
+                    type: string
+                    format: date-time
+                  businessRequirement:
+                    type: string
+                  candidates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        role:
+                          type: string
+        400:
+          description: Неверный идентификатор заявки.
+        401:
+          description: Пользователь не авторизован.
+        403:
+          description: Пользователь не имеет доступа к этой заявке.
+        404:
+          description: Заявка не найдена.
+        500:
+          description: Внутренняя ошибка сервера.
+
+  /api/v1/team/{id}:
+    get:
+      summary: Получить информацию о сформированной команде
+      tags:
+        - team
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Идентификатор заявки
+      responses:
+        200:
+          description: Информация о заявке и её команде успешно получена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  applicationId:
+                    type: integer
+                    example: 123
+                  businessRequirement:
+                    type: string
+                    example: "Разработка нового веб-приложения"
+                  team:
+                    type: string
+                    items:
+                      type: object
+                      properties:
+                        candidateId:
+                          type: integer
+                          example: 456
+                        name:
+                          type: string
+                          example: "Иван Иванов"
+                        role:
+                          type: string
+                          example: "System Analyst"
+                        experience:
+                          type: integer
+                          example: 5
+        400:
+          description: Неверный идентификатор заявки.
+        401:
+          description: Пользователь не авторизован.
+        403:
+          description: Пользователь не имеет доступа к данной заявке.
+        404:
+          description: Заявка не найдена.
+        500:
+          description: Внутренняя ошибка сервера.    
+        
+  /api/v1/candidate:
+    post:
+      summary: Получить список кандидатов
+      tags:
+        - candidate
+      parameters:
+        - name: roles
+          in: query
+          description: Фильтрация кандидатов по ролям
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Roles'
+            example: ["Backend Developer", "QA Engineer"]
+        - name: skills
+          in: query
+          description: Фильтр по навыкам кандидатов
+          required: false
+          schema:
+            $ref: '#/components/schemas/Skills'
+        - name: pageNumber
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: pageSize
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Список кандидатов успешно получен
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CandidateResponse'
+        400:
+          description: Некорректный запрос.
+        401:
+          description: Пользователь не авторизован.
+        403:
+          description: Пользователь не имеет прав для выполнения запроса.
+        404:
+          description: Кандидаты не найдены.
+        500:
+          description: Внутренняя ошибка сервера
+
+  /api/v1/application/{id}/candidate:
+    post:
+      summary: Добавить кандидата в список итоговой команды
+      tags:
+        - application
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Индентификатор заявки
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - candidateId
+              properties:
+                candidateId:
+                  type: integer
+                  description: Идентификатор кандидата, которого нужно добавить в заявку
+              example:
+                candidateId: 456
+      responses:
+        200:
+          description: Кандидат успешно добавлен в заявку
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Кандидат успешно добавлен в заявку"
+                  applicationId:
+                    type: integer
+                    example: 123
+                  candidateId:
+                    type: integer
+                    example: 456
+        400:
+          description: Некорректный запрос. (Например, не передан ID кандидата)
+        401:
+          description: Пользователь не авторизован.
+        403:
+          description: Пользователь не имеет прав на добавление кандидатов.
+        404:
+          description: Заявка или кандидат не найдены.
+        500:
+          description: Внутренняя ошибка сервера.
+  
+  /api/v1/candidate/{id}:
+    get:
+      summary: Получить информацию о кандидате
+      tags:
+        - candidate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Идентификатор кандидата
+      responses:
+        200:
+          description: Информация о кандидате успешно получена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidateId:
+                    type: integer
+                    example: 1
+                  name:
+                    type: string
+                    example: "Иван Иванов"
+                  role:
+                    type: string
+                    example: "Backend Developer"
+                  skills:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Skills'
+        404:
+          description: Кандидат не найден.
+
+  /api/v1/invitation:
+    post:
+      summary: Пригласить участнника в проект
+      tags:
+        - invitation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - projectId
+                - applicationDate
+                - businessRequirement
+                - participants
+              properties:
+                projectId:
+                  type: integer
+                  description: Идентификатор проекта, на который отправляется приглашение
+                applicationDate:
+                  type: string
+                  format: date-time
+                  description: Дата поступления заявки
+                businessRequirement:
+                  type: string
+                  description: Бизнес-требование проекта
+                participants:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        description: ФИО участника
+                      role:
+                        type: string
+                        description: Роль участника в проекте
+                  description: Список участников проекта с их ролями
+              example:
+                projectId: 123
+                applicationDate: "2024-11-14T19:17:00Z"
+                businessRequirement: "Разработка мобильного приложения для бизнеса"
+                participants:
+                  - name: "Иван Иванов"
+                    role: "Frontend Developer"
+                  - name: "Мария Петрова"
+                    role: "System Analyst"
+      responses:
+        200:
+          description: Приглашение успешно отправлено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Приглашение успешно отправлено."
+                  projectId:
+                    type: integer
+                    example: 123
+                  invitationSent:
+                    type: boolean
+                    example: true
+        400:
+          description: Некорректный запрос. Например, не переданы обязательные данные.
+        401:
+          description: Пользователь не авторизован.
+        403:
+          description: Пользователь не имеет прав для отправки приглашений.
+        404:
+          description: Проект или участник не найден.
+        500:
+          description: Внутренняя ошибка сервера.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ApplicationResponse:
+      type: object
+      required:
+        - id
+        - date
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+          format: date-time
+        businessRequirement:
+          type: string
+    CandidateResponse:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          $ref: '#/components/schemas/Roles'
+        skills:
+          $ref: '#/components/schemas/Skills'
+        experience:
+          type: integer
+    Skills:
+      type: string
+      enum:
+        - Java
+        - SQL
+        - Python
+        - JavaScript
+        - Project Management
+        - Data Analysis
+        - Machine Learning
+        - C#
+        - HTML/CSS
+        - DevOps
+    Roles:
+      type: string
+      enum:
+        - System Analyst
+        - Backend Developer
+        - Frontend Developer
+        - Project Manager
+        - Designer
+        - QA Engineer
